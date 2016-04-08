@@ -12,6 +12,18 @@ func Omega() L {
 	return omega(omega)
 }
 
+// Helpers
+
+func Ident(f L) L {
+	return f
+}
+
+func Const(f L) L {
+  return func(g L) L {
+    return f
+  }
+}
+
 // convert a church numeral into an integer by counting the number of times a function is applied.
 // There doesn't appear to be a nicer way to do this, unfortunately
 func ChurchToInt(n L) int {
@@ -45,21 +57,12 @@ func Pred(n L) L {
 	return curry(
 		func(f, x L) L {
 			return n(
-				curry(
-					func(g, h L) L {
+				curry(func(g, h L) L {
 						return h(g(f))
-					}))(
-				func(u L) L { return x })(
-				func(u L) L {
-					return u
-				})
+					}))(Const(x))(Ident)
 		})
 }
 
-// dummy value
-func Ident(f L) L {
-	return f
-}
 
 // strict fixed-point combinator without recursion
 func Z(f L) L {
@@ -92,12 +95,10 @@ func Examples() {
 	eight_if := iif(iszero(zero), eight, two)
 	fmt.Println(ChurchToInt(zero), ChurchToInt(One), ChurchToInt(Pred(eight_if)))
 
-	// for lazy computations that can be evaluated strictly
-	pad := func(f L) L { return func(g L) L { return f } }
 	// recusively compute (sum_{i=0}^n i)
 	summorial := Z(func(f L) L {
 		return func(n L) L {
-			return iif(iszero(n), pad(zero),
+			return iif(iszero(n), Const(zero),
 				func(g L) L { // need to bind this lazily
 					return Plus(n, f(Pred(n)))
 				})(Ident) // force the thunk
