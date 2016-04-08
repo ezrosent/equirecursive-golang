@@ -19,9 +19,9 @@ func Ident(f L) L {
 }
 
 func Const(f L) L {
-  return func(g L) L {
-    return f
-  }
+	return func(g L) L {
+		return f
+	}
 }
 
 // convert a church numeral into an integer by counting the number of times a function is applied.
@@ -58,11 +58,10 @@ func Pred(n L) L {
 		func(f, x L) L {
 			return n(
 				curry(func(g, h L) L {
-						return h(g(f))
-					}))(Const(x))(Ident)
+					return h(g(f))
+				}))(Const(x))(Ident)
 		})
 }
-
 
 // strict fixed-point combinator without recursion
 func Z(f L) L {
@@ -73,7 +72,6 @@ func Z(f L) L {
 	}
 	return help(help)
 }
-
 
 func Examples() {
 
