@@ -1,18 +1,10 @@
+/// Most examples taken from wikipedia articles on fixed-point combinators and church encoding
 package main
 
 import "fmt"
 
+// type of all values in the lambda calculus
 type L func(L) L
-
-// strict fixed-point combinator without recursion
-func Z(f L) L {
-	help := func(x L) L {
-		return f(func(v L) L {
-			return x(x)(v)
-		})
-	}
-	return help(help)
-}
 
 // infinite loop without recursion!
 func Omega() L {
@@ -27,9 +19,11 @@ func ChurchToInt(n L) int {
 	n(func(l L) L {
 		i += 1
 		return l
-	})(func(l L) L { return l })
+	})(Ident)
 	return i
 }
+
+// adaptation from the haskell function
 func curry(f func(L, L) L) L {
 	return func(a L) L {
 		return func(b L) L {
@@ -37,13 +31,17 @@ func curry(f func(L, L) L) L {
 		}
 	}
 }
-func plus(m, n L) L {
+
+var One L = curry(func(f, x L) L { return f(x) })
+
+// add two church numerals
+func Plus(m, n L) L {
 	return curry(func(f L, x L) L {
 		return m(f)(n(f)(x))
 	})
 }
 
-func pred(n L) L {
+func Pred(n L) L {
 	return curry(
 		func(f, x L) L {
 			return n(
@@ -58,7 +56,23 @@ func pred(n L) L {
 		})
 }
 
-func Tests() {
+// dummy value
+func Ident(f L) L {
+	return f
+}
+
+// strict fixed-point combinator without recursion
+func Z(f L) L {
+	help := func(x L) L {
+		return f(func(v L) L {
+			return x(x)(v)
+		})
+	}
+	return help(help)
+}
+
+
+func Examples() {
 
 	// Church bools
 	tru := curry(func(a L, b L) L { return a })
@@ -70,40 +84,29 @@ func Tests() {
 
 	// Church numerals
 	zero := fals
-	one := curry(func(f L, a L) L { return f(a) })
-	s := func(l L) L { return plus(one, l) }
-	// off by two, but this works
-	lif := func(c L, a, b func() L) L {
-		// need laziness here, more lambdas will implement it, but can't get it right atm
-		if ChurchToInt(c(zero)(one)) == 0 {
-			return c(a())(zero)
-		} else {
-			return c(zero)(b())
-		}
-	}
+	s := func(l L) L { return Plus(One, l) }
 
-	two := s(one)
-	four := plus(two, two)
-	eight := plus(four, four)
+	two := s(One)
+	four := s(s(two))
+	eight := Plus(four, four)
 	eight_if := iif(iszero(zero), eight, two)
-	fmt.Println(ChurchToInt(zero), ChurchToInt(one), ChurchToInt(pred(eight_if)))
+	fmt.Println(ChurchToInt(zero), ChurchToInt(One), ChurchToInt(Pred(eight_if)))
+
+	// for lazy computations that can be evaluated strictly
+	pad := func(f L) L { return func(g L) L { return f } }
+	// recusively compute (sum_{i=0}^n i)
 	summorial := Z(func(f L) L {
 		return func(n L) L {
-			return lif(iszero(n),
-				func() L { return zero },
-				func() L { return plus(n, f(pred(n))) })
+			return iif(iszero(n), pad(zero),
+				func(g L) L { // need to bind this lazily
+					return Plus(n, f(Pred(n)))
+				})(Ident) // force the thunk
 		}
 	})
-	fmt.Println(ChurchToInt(summorial(eight)))
+	fmt.Println(ChurchToInt(summorial(eight))) // 36
 }
-
-// The following would work if go evaluated things lazily
-// it causes infinite loops though
-// func YL(f func(T)T) T {
-//   return f(YL(f))
-// }
 
 func main() {
 	// Omega() stack overflow
-	Tests()
+	Examples()
 }
